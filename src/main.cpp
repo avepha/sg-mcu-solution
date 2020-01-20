@@ -9,7 +9,7 @@
 #define _TASK_SLEEP_ON_IDLE_RUN
 #define _TASK_TIMECRITICAL
 #define _TASK_PRIORITY
-#define VERSION "1.0.0"
+#define VERSION "1.0.1"
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -24,7 +24,7 @@
 
 #define DIR_485_PIN 8
 FastCRC16 crc16;
-SoftwareSerial outletPort(SG_SENSOR_RX, SG_SENSOR_TX);
+SoftwareSerial outletPort(SG_STATION_RX, SG_STATION_TX);
 
 Scheduler schCom, schMain;
 
@@ -57,7 +57,7 @@ void fPrintSensor() {
   sensors[1] = ph;
   sensors[2] = waterTemperature;
 
-  Serial.print("read sensor:");
+  Serial.print("[Info] Read sensor:");
   for (int i = 0 ; i < sizeof(sensors) / sizeof(sensors[0]); i++) {
     Serial.print(" ");
     Serial.print(String((float)sensors[i]));
@@ -80,7 +80,7 @@ void fCheckRequestAndResponse() {
       size++;
 
       uint32_t timeDiff = micros() - timestamp;
-      if (timeDiff > 1500 && timeDiff < 4000) {
+      if (timeDiff > 3000 && timeDiff < 4000) {
         Serial.println("[Error] invalid packet, 1.5ms > timediff < 4ms");
       }
 
@@ -90,74 +90,74 @@ void fCheckRequestAndResponse() {
       if (size == 0) {
         break;
       }
-
       uint32_t timeDiff = micros() - timestamp;
-      if (size > 0 && timeDiff >= 4000) {
-        if (requestPacket[0] != SLAVE_ID) {
-          break;
-        }
+      if (timeDiff >= 4000) {
+        if (size > 7) {
+          byte packet[8];
+          memcpy(packet, requestPacket, 8);
+          if (packet[0] != SLAVE_ID) {
+            break;
+          }
 
-        Serial.print("[Info] Got data: ");
-        printBytes(requestPacket, size);
+          byte crcByte[2] = {packet[sizeof(packet) - 2], packet[sizeof(packet) - 1]};
+          uint16_t packetCrc;
+          memcpy(&packetCrc, crcByte, sizeof(packetCrc));
 
-        byte crcByte[2] = {requestPacket[size - 2], requestPacket[size - 1]};
-        uint16_t packetCrc;
-        memcpy(&packetCrc, crcByte, sizeof(packetCrc));
+          byte data[sizeof(packet) - 4];
+          memcpy(data, &packet[2], sizeof(data));
 
-        byte data[size - 4];
-        memcpy(data, &requestPacket[2], sizeof(data));
+          uint16_t recalCrc = crc16.ccitt(data, sizeof(data));
 
-        uint16_t recalCrc = crc16.ccitt(data, sizeof(data));
+          if (recalCrc != packetCrc) {
+            // crc is not match
+            // response error
+            Serial.println("[Error] Crc is not match");
+            break;
+          }
+          else {
+            Serial.println("[Info] Got valid packet, func: " + String(packet[1], HEX));
+          }
 
-        if (recalCrc != packetCrc) {
-          // crc is not match
-          // response error
-          Serial.println("[Error] Crc is not match");
-          break;
-        }
-        else {
-          Serial.println("[Info] Got valid packet, func: " + String(requestPacket[1], HEX));
-        }
-
-        byte funcCode = requestPacket[1];
-        switch (funcCode) {
-          case 0x04: {
-            uint32_t sensors[3];
-            sensors[0] = ec;
-            sensors[1] = ph;
-            sensors[2] = waterTemperature;
+          byte funcCode = packet[1];
+          switch (funcCode) {
+            case 0x04: {
+              uint32_t sensors[3];
+              sensors[0] = ec;
+              sensors[1] = ph;
+              sensors[2] = waterTemperature;
 #ifdef SG_TEST
-            sensors[0] = 1.5;
+              sensors[0] = 1.5;
             sensors[1] = 6.5;
             sensors[2] = 25;
 #endif
-            // response sensors
-            byte packets[100];
-            byte data[100];
-            data[0] = 0x01; // 0x01 = type gsensor
-            uint16_t dataIndex = 1;
-            for (uint16_t i = 0; i < sizeof(sensors) / sizeof(sensors[0]); i++) {
-              memcpy(&data[dataIndex], &sensors[i], sizeof(sensors[i]));
-              dataIndex += 4;
+              // response sensors
+              byte packets[100];
+              byte data[100];
+              data[0] = 0x01; // 0x01 = type gsensor
+              uint16_t dataIndex = 1;
+              for (uint16_t i = 0; i < sizeof(sensors) / sizeof(sensors[0]); i++) {
+                memcpy(&data[dataIndex], &sensors[i], sizeof(sensors[i]));
+                dataIndex += 4;
+              }
+
+              uint16_t packetSize = generatePacket(packets, SLAVE_ID, 0x04, data, sizeof(sensors));
+              digitalWrite(SG_STATION_DIR_PIN, RS485_SEND_MODE);
+              outletPort.write(packets, packetSize);
+              digitalWrite(SG_STATION_DIR_PIN, RS485_RECV_MODE);
+
+              Serial.print("[Info] write data: ");
+              printBytes(packets, packetSize);
+
+              break;
             }
+            case 0x17: {
+              // response slave id
+              byte packets[100];
+              byte data[100] = {SLAVE_ID};
 
-            uint16_t packetSize = generatePacket(packets, SLAVE_ID, 0x04, data, sizeof(sensors));
-            digitalWrite(SG_SENSOR_DIR, SG_SENSOR_SEND_MODE);
-            outletPort.write(packets, packetSize);
-            digitalWrite(SG_SENSOR_DIR, SG_SENSOR_RECV_MODE);
-
-            Serial.print("[Info] write data: ");
-            printBytes(packets, packetSize);
-
-            break;
-          }
-          case 0x17: {
-            // response slave id
-            byte packets[100];
-            byte data[100] = {SLAVE_ID};
-
-            uint16_t packetSize = generatePacket(packets, SLAVE_ID, 0x04, data, 4);
-            outletPort.write(packets, packetSize);
+              uint16_t packetSize = generatePacket(packets, SLAVE_ID, 0x04, data, 4);
+              outletPort.write(packets, packetSize);
+            }
           }
         }
 
@@ -170,8 +170,13 @@ Task tCheckRequestAndResponse(50, TASK_FOREVER, &fCheckRequestAndResponse, &schC
 
 void setup() {
   analogReference(EXTERNAL);
-  pinMode(DIR_485_PIN, OUTPUT);
-  digitalWrite(DIR_485_PIN, HIGH);
+  pinMode(SG_STATION_DIR_PIN, OUTPUT);
+  pinMode(SG_STATION_RX, INPUT);
+  pinMode(SG_STATION_TX, OUTPUT);
+
+  digitalWrite(SG_STATION_DIR_PIN, RS485_RECV_MODE);
+  digitalWrite(SG_STATION_TX, HIGH);
+
   Wire.begin();
   Serial.begin(9600);
   outletPort.begin(9600);

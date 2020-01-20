@@ -6,5 +6,5 @@
 
 #define PAR_PIN A3
 
-#define SG_SENSOR_RX 9
-#define SG_SENSOR_TX 7
+#define SG_STATION_RX 9
+#define SG_STATION_TX 7
