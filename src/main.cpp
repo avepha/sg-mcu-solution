@@ -20,8 +20,6 @@
 #include "./config/config.h"
 #include "./util/packetUtil.h"
 
-#include "par.h"
-
 #define DIR_485_PIN 8
 FastCRC16 crc16;
 SoftwareSerial outletPort(SG_STATION_RX, SG_STATION_TX);
@@ -35,12 +33,12 @@ float waterTemperature = 0;
 
 void getEc() {
   uint16_t rawEcAnalog = analogRead(EC_PIN);
-  ec = 1.5;
+  ec =  2.538045247 * rawEcAnalog - 500;
 }
 
 void getpH() {
-  uint16_t rawpHAnalog = analogRead(EC_PIN);
-  ph = 6.5;
+  uint16_t rawpHAnalog = analogRead(PH_PIN);
+  ph =  0.017766317 * rawpHAnalog - 3.5;
 }
 
 void getWaterTemperature() {
