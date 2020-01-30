@@ -6,4 +6,4 @@ const int SG_STATION_DIR_PIN = 8;
 
 const int EC_PIN = A0;
 const int PH_PIN = A1;
-const int WATER_TEMPETURE = A3;
+const int WATER_TEMPETURE = 2;
