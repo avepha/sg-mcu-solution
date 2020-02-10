@@ -62,6 +62,7 @@ void fPrintSensor() {
   }
   Serial.println();
 }
+
 Task tPrintSensor(2000L, TASK_FOREVER, &fPrintSensor, &schMain, true);
 
 void fCheckRequestAndResponse() {
@@ -119,20 +120,23 @@ void fCheckRequestAndResponse() {
           byte funcCode = packet[1];
           switch (funcCode) {
             case 0x04: {
-              uint32_t sensors[3];
+              float sensors[3];
               sensors[0] = ec;
               sensors[1] = ph;
               sensors[2] = waterTemperature;
 #ifdef SG_TEST
-              sensors[0] = 1.5;
-            sensors[1] = 6.5;
-            sensors[2] = 25;
+              ec = 1.5;
+              ph = 6.5;
+              waterTemperature = 25;
+              sensors[0] = ec;
+              sensors[1] = ph;
+              sensors[2] = waterTemperature;
+
 #endif
               // response sensors
               byte packets[100];
               byte data[100];
-              data[0] = 0x01; // 0x01 = type gsensor
-              uint16_t dataIndex = 1;
+              uint16_t dataIndex = 0;
               for (uint16_t i = 0; i < sizeof(sensors) / sizeof(sensors[0]); i++) {
                 memcpy(&data[dataIndex], &sensors[i], sizeof(sensors[i]));
                 dataIndex += 4;
