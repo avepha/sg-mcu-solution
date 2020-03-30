@@ -25,17 +25,29 @@ float waterTemperature = 0;
 
 
 void getEc() {
+#ifdef SG_TEST
+  ec = (float)random(1000, 1500) / 1000;
+#else
   uint16_t rawEcAnalog = analogRead(EC_PIN);
-  ec =  2.538045247 * rawEcAnalog - 500;
+  ec = 2.538045247 * rawEcAnalog - 500;
+#endif
 }
 
 void getpH() {
+#ifdef SG_TEST
+  ph = (float)random(6500, 7000) / 1000;
+#else
   uint16_t rawpHAnalog = analogRead(PH_PIN);
-  ph =  0.017766317 * rawpHAnalog - 3.5;
+  ph = 0.017766317 * rawpHAnalog - 3.5;
+#endif
 }
 
 void getWaterTemperature() {
-  waterTemperature = 25;
+#ifdef SG_TEST
+  waterTemperature = (float)random(2500, 2600) / 100;
+#else
+  waterTemperature = (float)random(2500, 2600) / 100;
+#endif
 }
 
 Task tGetTemperature(2000L, TASK_FOREVER, &getEc, &schMain, true);
@@ -43,15 +55,15 @@ Task tGetHumidity(2050L, TASK_FOREVER, &getpH, &schMain, true);
 Task tGetSoilTemperature(2200L, TASK_FOREVER, &getWaterTemperature, &schMain, true);
 
 void fPrintSensor() {
-  uint32_t sensors[3];
+  float sensors[3];
   sensors[0] = ec;
   sensors[1] = ph;
   sensors[2] = waterTemperature;
 
   Serial.print("[Info] Read sensor:");
-  for (int i = 0 ; i < sizeof(sensors) / sizeof(sensors[0]); i++) {
+  for (int i = 0; i < sizeof(sensors) / sizeof(sensors[0]); i++) {
     Serial.print(" ");
-    Serial.print(String((float)sensors[i]));
+    Serial.print(String((float) sensors[i]));
   }
   Serial.println();
 }
@@ -117,15 +129,6 @@ void fCheckRequestAndResponse() {
               sensors[0] = ec;
               sensors[1] = ph;
               sensors[2] = waterTemperature;
-#ifdef SG_TEST
-              ec = 1.5;
-              ph = 6.5;
-              waterTemperature = 25;
-              sensors[0] = ec;
-              sensors[1] = ph;
-              sensors[2] = waterTemperature;
-
-#endif
               // response sensors
               byte packets[100];
               byte data[100];
@@ -161,6 +164,7 @@ void fCheckRequestAndResponse() {
     }
   }
 }
+
 Task tCheckRequestAndResponse(50, TASK_FOREVER, &fCheckRequestAndResponse, &schCom, true);
 
 void setup() {
