@@ -107,10 +107,7 @@ void fCheckRequestAndResponse() {
           uint16_t packetCrc;
           memcpy(&packetCrc, crcByte, sizeof(packetCrc));
 
-          byte data[sizeof(packet) - 4];
-          memcpy(data, &packet[2], sizeof(data));
-
-          uint16_t recalCrc = crc16.ccitt(data, sizeof(data));
+          uint16_t recalCrc = crc16.modbus(packet, sizeof(packet) - 2);
 
           if (recalCrc != packetCrc) {
             // crc is not match
