@@ -2,7 +2,7 @@
 #define _TASK_SLEEP_ON_IDLE_RUN
 #define _TASK_TIMECRITICAL
 #define _TASK_PRIORITY
-#define VERSION "1.1.4"
+#define VERSION "1.1.5"
 
 #include <Arduino.h>
 #include <Wire.h>
