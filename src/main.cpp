@@ -42,6 +42,9 @@ void getpH() {
 #else
   uint16_t rawpHAnalog = analogRead(PH_PIN);
   ph = 0.017766317 * rawpHAnalog - 3.5;
+  if (ph <= 0) {
+    ph = 0;
+  }
 #endif
 }
 
@@ -49,7 +52,7 @@ void getWaterTemperature() {
 #ifdef SG_TEST
   waterTemperature = (float)random(2500, 2600) / 100;
 #else
-  waterTemperature = (float)random(2500, 2600) / 100;
+  waterTemperature = (float) random(2500, 2600) / 100;
 #endif
 }
 
