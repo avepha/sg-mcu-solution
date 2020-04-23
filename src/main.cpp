@@ -30,6 +30,9 @@ void getEc() {
 #else
   uint16_t rawEcAnalog = analogRead(EC_PIN);
   ec = 2.538045247 * rawEcAnalog - 500;
+  if (ec <= 0) {
+    ec = 0;
+  }
 #endif
 }
 
