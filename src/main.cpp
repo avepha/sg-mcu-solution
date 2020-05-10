@@ -13,7 +13,6 @@
 #include "./config/config.h"
 #include "./util/packetUtil.h"
 
-#define DIR_485_PIN 8
 FastCRC16 crc16;
 SoftwareSerial outletPort(SG_STATION_RX, SG_STATION_TX);
 
@@ -26,10 +25,10 @@ float waterTemperature = 0;
 
 void getEc() {
 #ifdef SG_TEST
-  ec = (float)random(1000, 1500) / 1000;
+  ec = (float)random(1000, 1500) / 1000; // millis semen
 #else
   uint16_t rawEcAnalog = analogRead(EC_PIN);
-  ec = 2.538045247 * rawEcAnalog - 500;
+  ec = (2.538045247 * rawEcAnalog - 500) / 1000;
   if (ec <= 0) {
     ec = 0;
   }
