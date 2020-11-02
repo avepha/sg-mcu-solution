@@ -9,10 +9,16 @@
 #include <SoftwareSerial.h>
 #include <TaskScheduler.h>
 #include <FastCRC.h>
+#include <OneWire.h>
+#include <DS18B20.h>
 #include "util/converter.h"
 #include "./config/config.h"
 #include "./util/packetUtil.h"
 #include "./util/arr_print.h"
+
+#define ONE_WIRE_BUS 2
+OneWire oneWire(ONE_WIRE_BUS);
+DS18B20 waterTemperatureSensor(&oneWire);
 
 FastCRC16 crc16;
 SoftwareSerial outletPort(SG_STATION_RX, SG_STATION_TX);
@@ -48,11 +54,33 @@ void getpH() {
 #endif
 }
 
+enum WATER_TEMPERATURE_STATE {
+  WT_REQUESTING = 0,
+  WT_FINISHED = 1
+};
+WATER_TEMPERATURE_STATE waterTemperatureState = WT_FINISHED;
+int waterTempCount = 0;
 void getWaterTemperature() {
 #ifdef SG_TEST
   waterTemperature = (float)random(2500, 2600) / 100;
 #else
-  waterTemperature = (float) random(2500, 2600) / 100;
+  if (waterTemperatureState == WT_FINISHED) {
+    waterTemperatureSensor.requestTemperatures();
+    waterTemperatureState = WT_REQUESTING;
+  }
+  else {
+    if (waterTemperatureSensor.isConversionComplete()) {
+      waterTemperature = waterTemperatureSensor.getTempC();
+      waterTemperatureState = WT_FINISHED;
+      waterTempCount = 0;
+    }
+    waterTempCount++;
+    if (waterTempCount >= 3) {
+      waterTempCount = 0;
+      waterTemperatureState = WT_FINISHED;
+    }
+  }
+
 #endif
 }
 
@@ -183,6 +211,7 @@ void setup() {
   digitalWrite(SG_STATION_TX, HIGH);
 
   Wire.begin();
+  waterTemperatureSensor.begin();
   Serial.begin(9600);
   outletPort.begin(9600);
 
